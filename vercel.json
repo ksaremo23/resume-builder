@@ -5,7 +5,7 @@
   "installCommand": "npm install",
   "framework": "vite",
   "functions": {
-    "api/generate-content.js": {
+    "api/**/*.js": {
       "runtime": "nodejs18.x"
     }
   },

@@ -1,50 +1,50 @@
 import OpenAI from 'openai';
 
 export default async function handler(req, res) {
-  // Set CORS headers
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
-  // Handle preflight
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
 
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    let body;
-    try {
-      body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    } catch (parseError) {
-      return res.status(400).json({ error: 'Invalid JSON in request body' });
-    }
+    // Parse request body
+    const body = req.body || {};
+    const { prompt, type = 'summary', context = '' } = body;
 
-    const { prompt, type, context } = body;
-
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required', message: 'Prompt is required' });
-    }
-
-    // Check if API key is configured
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('OpenAI API key not configured');
-      return res.status(500).json({ 
-        error: 'OpenAI API key not configured',
-        message: 'Please configure OPENAI_API_KEY environment variable in Vercel settings'
+    // Validate input
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ 
+        error: 'Invalid request',
+        message: 'Prompt is required and must be a string'
       });
     }
 
-    // Initialize OpenAI client
+    // Check for API key
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error('OPENAI_API_KEY is not set');
+      return res.status(500).json({ 
+        error: 'Configuration error',
+        message: 'OpenAI API key is not configured. Please add OPENAI_API_KEY to your Vercel environment variables.'
+      });
+    }
+
+    // Initialize OpenAI
     const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: apiKey,
     });
 
-    // Create different prompts based on type
+    // Build prompts based on type
     let systemPrompt = '';
     let userPrompt = prompt;
 
@@ -76,17 +76,44 @@ export default async function handler(req, res) {
       max_tokens: 500,
     });
 
-    const generatedContent = completion.choices[0].message.content;
+    const generatedContent = completion.choices[0]?.message?.content;
 
-    return res.status(200).json({ content: generatedContent });
+    if (!generatedContent) {
+      return res.status(500).json({ 
+        error: 'Invalid response',
+        message: 'OpenAI API returned an empty response'
+      });
+    }
+
+    return res.status(200).json({ 
+      content: generatedContent,
+      success: true
+    });
+
   } catch (error) {
-    console.error('OpenAI API error:', error);
-    const errorMessage = error.message || 'Unknown error occurred';
-    return res.status(500).json({ 
-      error: 'Failed to generate content',
+    console.error('OpenAI API Error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      response: error.response?.data
+    });
+
+    // Provide more specific error messages
+    let errorMessage = 'Failed to generate content';
+    let statusCode = 500;
+
+    if (error.response) {
+      // OpenAI API error
+      errorMessage = error.response.data?.error?.message || error.message;
+      statusCode = error.response.status || 500;
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    return res.status(statusCode).json({ 
+      error: 'Generation failed',
       message: errorMessage,
-      details: error.response?.data || null
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
-
