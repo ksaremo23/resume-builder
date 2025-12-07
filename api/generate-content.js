@@ -31,11 +31,21 @@ export default async function handler(req, res) {
 
     // Check for API key
     const apiKey = process.env.OPENAI_API_KEY;
+    
+    // Debug: Log environment info (without exposing the key)
+    console.log('Environment check:', {
+      hasKey: !!apiKey,
+      keyLength: apiKey ? apiKey.length : 0,
+      keyPrefix: apiKey ? apiKey.substring(0, 3) : 'none',
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('OPENAI'))
+    });
+    
     if (!apiKey) {
-      console.error('OPENAI_API_KEY is not set');
+      console.error('OPENAI_API_KEY is not set. Available env vars:', Object.keys(process.env).slice(0, 10));
       return res.status(500).json({ 
         error: 'Configuration error',
-        message: 'OpenAI API key is not configured. Please add OPENAI_API_KEY to your Vercel environment variables.'
+        message: 'OpenAI API key is not configured. Please add OPENAI_API_KEY to your Vercel environment variables and redeploy.',
+        hint: 'Make sure you redeployed after adding the environment variable. Environment variables only apply to new deployments.'
       });
     }
 
