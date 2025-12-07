@@ -17,15 +17,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, type, context } = req.body;
+    let body;
+    try {
+      body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    } catch (parseError) {
+      return res.status(400).json({ error: 'Invalid JSON in request body' });
+    }
+
+    const { prompt, type, context } = body;
 
     if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+      return res.status(400).json({ error: 'Prompt is required', message: 'Prompt is required' });
     }
 
     // Check if API key is configured
     if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ error: 'OpenAI API key not configured' });
+      console.error('OpenAI API key not configured');
+      return res.status(500).json({ 
+        error: 'OpenAI API key not configured',
+        message: 'Please configure OPENAI_API_KEY environment variable in Vercel settings'
+      });
     }
 
     // Initialize OpenAI client
@@ -70,9 +81,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ content: generatedContent });
   } catch (error) {
     console.error('OpenAI API error:', error);
+    const errorMessage = error.message || 'Unknown error occurred';
     return res.status(500).json({ 
       error: 'Failed to generate content',
-      message: error.message 
+      message: errorMessage,
+      details: error.response?.data || null
     });
   }
 }
