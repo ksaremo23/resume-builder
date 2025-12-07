@@ -1,9 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react'
 import './RichTextEditor.css'
+import { generateAIContent } from '../services/openaiService'
 
-function RichTextEditor({ value, onChange, placeholder, showAIGenerate = false, onAIGenerate }) {
+function RichTextEditor({ value, onChange, placeholder, showAIGenerate = false, onAIGenerate, aiType = 'summary', aiContext = '' }) {
   const editorRef = useRef(null)
   const [isFocused, setIsFocused] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
@@ -33,12 +35,34 @@ function RichTextEditor({ value, onChange, placeholder, showAIGenerate = false, 
     return document.queryCommandState(command)
   }
 
-  const handleAIGenerate = () => {
+  const handleAIGenerate = async () => {
     if (onAIGenerate) {
       onAIGenerate()
-    } else {
-      // Placeholder for AI generation
-      alert('AI generation feature coming soon!')
+      return
+    }
+
+    setIsGenerating(true)
+    try {
+      // Create a prompt based on the placeholder and context
+      let prompt = placeholder || 'Generate professional resume content'
+      
+      // If there's existing content, use it as context
+      if (value && value.trim()) {
+        prompt = `Based on this existing content, enhance or expand it: ${value}. ${prompt}`
+      }
+
+      const generatedContent = await generateAIContent(prompt, aiType, aiContext)
+      
+      // Update the editor with generated content
+      if (editorRef.current) {
+        editorRef.current.innerHTML = generatedContent
+        onChange(generatedContent)
+      }
+    } catch (error) {
+      console.error('AI generation error:', error)
+      alert(`Failed to generate content: ${error.message || 'Please check your OpenAI API key configuration'}`)
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -106,11 +130,15 @@ function RichTextEditor({ value, onChange, placeholder, showAIGenerate = false, 
           <div className="toolbar-group ai-group">
             <button
               type="button"
-              className="toolbar-btn ai-btn"
+              className={`toolbar-btn ai-btn ${isGenerating ? 'loading' : ''}`}
               onClick={handleAIGenerate}
+              disabled={isGenerating}
               title="Generate from AI"
             >
-              <span className="ai-icon">✨</span> Generate from AI
+              <span className="ai-icon">
+                {isGenerating ? '⏳' : '✨'}
+              </span>
+              {isGenerating ? 'Generating...' : 'Generate from AI'}
             </button>
           </div>
         )}

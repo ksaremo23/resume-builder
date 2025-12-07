@@ -12,6 +12,7 @@ function SummaryForm({ data, updateData }) {
           onChange={updateData}
           placeholder="Write a brief summary of your professional background, key skills, and career objectives..."
           showAIGenerate={true}
+          aiType="summary"
         />
       </div>
     </div>

@@ -113,6 +113,8 @@ function ExperienceForm({ data, updateData }) {
               onChange={(html) => updateExperience(index, 'description', html)}
               placeholder="Describe your responsibilities and achievements..."
               showAIGenerate={true}
+              aiType="experience"
+              aiContext={exp.position && exp.company ? `${exp.position} at ${exp.company}` : exp.position || exp.company || ''}
             />
           </div>
         </div>
