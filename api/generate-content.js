@@ -77,8 +77,9 @@ export default async function handler(req, res) {
     }
 
     // Call Groq API (using OpenAI-compatible endpoint)
+    // Using llama-3.1-8b-instant as it's fast and currently available
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.1-70b-versatile', // Groq's fast model
+      model: 'llama-3.1-8b-instant', // Fast and efficient model
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
