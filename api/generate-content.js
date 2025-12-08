@@ -30,28 +30,29 @@ export default async function handler(req, res) {
     }
 
     // Check for API key
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     
     // Debug: Log environment info (without exposing the key)
     console.log('Environment check:', {
       hasKey: !!apiKey,
       keyLength: apiKey ? apiKey.length : 0,
       keyPrefix: apiKey ? apiKey.substring(0, 3) : 'none',
-      allEnvKeys: Object.keys(process.env).filter(k => k.includes('OPENAI'))
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('GROQ'))
     });
     
     if (!apiKey) {
-      console.error('OPENAI_API_KEY is not set. Available env vars:', Object.keys(process.env).slice(0, 10));
+      console.error('GROQ_API_KEY is not set. Available env vars:', Object.keys(process.env).slice(0, 10));
       return res.status(500).json({ 
         error: 'Configuration error',
-        message: 'OpenAI API key is not configured. Please add OPENAI_API_KEY to your Vercel environment variables and redeploy.',
+        message: 'Groq API key is not configured. Please add GROQ_API_KEY to your Vercel environment variables and redeploy.',
         hint: 'Make sure you redeployed after adding the environment variable. Environment variables only apply to new deployments.'
       });
     }
 
-    // Initialize OpenAI
-    const openai = new OpenAI({
+    // Initialize Groq (OpenAI-compatible API)
+    const groq = new OpenAI({
       apiKey: apiKey,
+      baseURL: 'https://api.groq.com/openai/v1',
     });
 
     // Build prompts based on type
@@ -75,9 +76,9 @@ export default async function handler(req, res) {
       }
     }
 
-    // Call OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+    // Call Groq API (using OpenAI-compatible endpoint)
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.1-70b-versatile', // Groq's fast model
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -91,7 +92,7 @@ export default async function handler(req, res) {
     if (!generatedContent) {
       return res.status(500).json({ 
         error: 'Invalid response',
-        message: 'OpenAI API returned an empty response'
+        message: 'Groq API returned an empty response'
       });
     }
 
@@ -101,7 +102,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('OpenAI API Error:', {
+    console.error('Groq API Error:', {
       message: error.message,
       stack: error.stack,
       name: error.name,
@@ -113,7 +114,7 @@ export default async function handler(req, res) {
     let statusCode = 500;
 
     if (error.response) {
-      // OpenAI API error
+      // Groq API error
       errorMessage = error.response.data?.error?.message || error.message;
       statusCode = error.response.status || 500;
     } else if (error.message) {
